@@ -1,0 +1,181 @@
+:root {
+  /* 使用 vh 单位，字体大小会随窗口高度拉伸而变化 */
+  --base-font-size: 8vh; 
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  /* 彻底透明 */
+  background-color: transparent !important; 
+  overflow: hidden;
+  /* 禁止选中 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.01); 
+  display: flex;
+  flex-direction: column;
+  /* 靠下或居中对齐，QQ 音乐通常歌词占大头 */
+  justify-content: center; 
+  align-items: center;
+  transition: all 0.2s ease;
+  padding: 10px;
+  box-sizing: border-box; /* 保证 padding 不撑破窗口 */
+}
+
+#app:hover {
+  background-color: rgba(0, 0, 0, 0.2); 
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  --control-opacity: 1;
+}
+
+/* 锁定模式：物理穿透，默认不显示任何背景/边框 */
+.locked {
+  pointer-events: none !important; 
+  border-color: transparent !important;
+  background-color: transparent !important;
+}
+
+/* 关键修改：锁定状态下隐藏所有常规控制按钮 */
+.locked .normal-controls {
+  display: none !important;
+}
+
+/* 锁定模式下，鼠标进入窗口区域（Rust 检测）：只显示锁，不显示背景 */
+.locked.mouse-in #control-panel {
+  opacity: 1;
+  /* 确保 control-panel 只有锁按钮可见，背景透明 */
+  background: transparent !important; 
+  backdrop-filter: none !important;
+  pointer-events: none; /* 此时依然穿透，直到进入 mouse-in-lock 状态 */
+}
+
+.locked.mouse-in #unlock-btn {
+  display: block !important;
+  opacity: 0.6; /* 半透明提示 */
+  /* 加大点击区域 */
+  padding: 10px;
+  margin: -10px;
+}
+
+/* 鼠标精准进入锁区域：变成实心，可点击 */
+.locked.mouse-in-lock {
+  pointer-events: auto !important; /* 整个 app 恢复响应（其实是 Rust 恢复了） */
+}
+
+.locked.mouse-in-lock #control-panel {
+  pointer-events: auto !important;
+}
+
+.locked.mouse-in-lock #unlock-btn {
+  display: block !important;
+  opacity: 1; /* 完全不透明 */
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+/* 清理旧的 Ctrl 激活样式 */
+.locked.temp-active {
+  /* 留空或删除 */
+}
+
+/* 非锁定模式：只有鼠标悬浮才显示“操作框” */
+#app:not(.locked):hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+}
+
+.controls {
+  position: absolute;
+  top: 5px;
+  /* 让控制栏也随高度微调，但不至于太大 */
+  height: 15vh; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: var(--control-opacity);
+  z-index: 100;
+}
+
+/* 控制面板逻辑 */
+#control-panel {
+  position: absolute;
+  top: 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none; /* 默认不接受点击 */
+  z-index: 100;
+  /* 美化 */
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px 15px;
+  border-radius: 30px;
+  backdrop-filter: blur(5px);
+}
+
+/* 当非锁定状态 hover 时显示 */
+#app:not(.locked):hover #control-panel {
+  opacity: 1;
+  pointer-events: auto; /* 显示时接受点击 */
+}
+
+.btn-group button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px; /* 稍微调大一点 */
+  width: 36px;     /* 固定宽度 */
+  height: 36px;    /* 固定高度 */
+  line-height: 36px;
+  text-align: center;
+  padding: 0;
+  cursor: pointer;
+  margin: 0 4px;   /* 间距稍微调小，因为有固定宽度了 */
+  filter: drop-shadow(0 0 2px black);
+  transition: transform 0.1s, color 0.1s;
+  /* 确保符号居中 */
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 微调播放图标 (▶) 的大小，使其在视觉上与其他图标平衡 */
+#play-pause.icon-play {
+  font-size: 16px !important;
+  /* 微调水平位置，让三角形视觉重心居中 */
+  margin-left: 2px; 
+}
+
+.btn-group button:hover {
+  transform: scale(1.2);
+  color: #1DB954; /* Spotify Green */
+}
+
+#lrc-content {
+  color: #1DB954;
+  font-weight: 900;
+  /* 关键修改：最小 28px，正常窗口高度的 30%，最大 120px */
+  font-size: clamp(28px, 30vh, 120px); 
+  text-align: center;
+  pointer-events: none;
+  transition: font-size 0.1s;
+  /* 增加文字阴影，防止在复杂背景下看不清 */
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  line-height: 1.2;
+}
+
+#info-row {
+  color: rgba(255, 255, 255, 0.7);
+  /* 适当放大歌名：最小 12px，正常窗口高度的 8%，最大 24px */
+  font-size: clamp(12px, 8vh, 24px); 
+  margin-bottom: 2vh;
+  pointer-events: none;
+  font-weight: 500;
+}

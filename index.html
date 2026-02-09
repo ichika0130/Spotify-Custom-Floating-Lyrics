@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:,">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Lyrics</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- 控制面板：默认透明，Hover 显示 -->
+      <div id="control-panel">
+        <div class="btn-group">
+          <!-- 解锁按钮：仅在 locked 时显示（需 CSS 配合） -->
+          <button id="unlock-btn" title="Unlock" class="show-when-locked" style="display: none;">🔒</button>
+          
+          <!-- 常规控制：仅在 not locked 时显示 -->
+          <div class="normal-controls">
+            <button id="spotify-login" title="Connect Spotify (Required for Precision Sync)">🔗</button>
+            <!-- <button id="offset-minus" title="Delay -0.5s">⏪</button> -->
+            <button id="prev" title="Previous">⏮</button>
+            <button id="play-pause" title="Play/Pause">►</button>
+            <button id="next" title="Next">⏭</button>
+            <!-- <button id="offset-plus" title="Delay +0.5s">⏩</button> -->
+            <button id="lock-btn" title="Lock Window">🔓</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="info-row" data-tauri-drag-region>Initializing...</div>
+      <div id="lrc-content" data-tauri-drag-region>Waiting for Spotify</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

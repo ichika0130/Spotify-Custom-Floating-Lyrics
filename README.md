@@ -53,3 +53,7 @@ npm run tauri dev
    cargo run --bin diagnose_smtc
    ```
    如果输出中包含 `AUMID: Spotify.exe` 或类似项，说明系统识别正常。如果报错 `0x80010002`，可能是系统服务繁忙，请重试或重启电脑。
+
+# Spotify-Custom-Floating-Lyrics
+Floating Lyrics for Spotify
+

@@ -1,5 +1,5 @@
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LyricManager, TrackInfo } from './LyricManager';
 
 // Mock dependencies
@@ -56,7 +56,7 @@ describe('LyricManager Fuzzy Search', () => {
             { trackName: 'Test Song', artistName: 'Test Artist', duration: 210, plainLyrics: 'Lyrics 2' }  // diff 10s
         ];
         
-        mockInvoke.mockImplementation((cmd, args) => {
+        mockInvoke.mockImplementation((cmd, _args) => {
             if (cmd === 'fetch_proxy') {
                 return Promise.resolve(JSON.stringify(searchResults));
             }

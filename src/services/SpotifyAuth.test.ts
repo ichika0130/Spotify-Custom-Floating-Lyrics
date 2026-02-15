@@ -3,7 +3,7 @@ import { SpotifyAuth } from './SpotifyAuth';
 
 // Mock fetch and localStorage
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.stubGlobal('fetch', mockFetch);
 
 const mockLocalStorage = {
     store: {} as Record<string, string>,
@@ -14,11 +14,11 @@ const mockLocalStorage = {
 };
 
 // Mock global objects
-global.localStorage = mockLocalStorage as any;
-global.window = {
+vi.stubGlobal('localStorage', mockLocalStorage);
+vi.stubGlobal('window', {
     location: { href: '' },
     close: vi.fn()
-} as any;
+});
 
 describe('SpotifyAuth Connectivity', () => {
     beforeEach(() => {

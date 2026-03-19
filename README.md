@@ -23,3 +23,5 @@ A lightweight Spotify lyrics application built with Tauri and React.
 npm install
 npm run tauri dev
 ```
+
+小孩子做着玩的

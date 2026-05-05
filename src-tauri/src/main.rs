@@ -125,14 +125,17 @@ fn main() {
                                         let _ = window.emit("hover-window", in_window);
                                     }
 
-                                    let lock_zone_height = 80i32.min(wh);
+                                    let zone_w = 150i32.min(ww);
+                                    let zone_h = 70i32.min(wh);
+                                    let zone_left = wx + (ww / 2) - (zone_w / 2);
+                                    let zone_right = wx + (ww / 2) + (zone_w / 2);
 
                                     #[cfg(target_os = "windows")]
-                                    let (zone_top, zone_bot) = (wy, wy + lock_zone_height);
+                                    let (zone_top, zone_bot) = (wy, wy + zone_h);
                                     #[cfg(target_os = "macos")]
-                                    let (zone_top, zone_bot) = (wy + wh, wy + wh - lock_zone_height);
+                                    let (zone_top, zone_bot) = (wy + wh, wy + wh - zone_h);
 
-                                    let in_lock_zone = x >= wx && x <= wx + ww
+                                    let in_lock_zone = x >= zone_left && x <= zone_right
                                         && y >= zone_bot && y <= zone_top;
 
                                     if !was_locked || in_lock_zone != was_in_lock_zone {

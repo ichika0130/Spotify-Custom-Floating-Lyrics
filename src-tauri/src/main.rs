@@ -129,26 +129,23 @@ fn main() {
                                         let _ = window.emit("hover-window", in_window);
                                     }
 
-                                    let lock_zone_width = 100i32.min(ww);
-                                    let lock_zone_height = 60i32.min(wh);
-                                    let lock_zone_left = wx + (ww / 2) - (lock_zone_width / 2);
-                                    let lock_zone_right = wx + (ww / 2) + (lock_zone_width / 2);
+                                    let lock_zone_height = 80i32.min(wh);
 
                                     #[cfg(target_os = "windows")]
-                                    let (lock_zone_top, lock_zone_bottom) = (wy, wy + lock_zone_height);
+                                    let (zone_top, zone_bot) = (wy, wy + lock_zone_height);
                                     #[cfg(target_os = "macos")]
-                                    let (lock_zone_top, lock_zone_bottom) = (wy + wh, wy + wh - lock_zone_height);
+                                    let (zone_top, zone_bot) = (wy + wh, wy + wh - lock_zone_height);
 
-                                    let in_lock_zone = x >= lock_zone_left && x <= lock_zone_right
-                                        && y >= lock_zone_bottom && y <= lock_zone_top;
+                                    let in_lock_zone = x >= wx && x <= wx + ww
+                                        && y >= zone_bot && y <= zone_top;
 
                                     if !was_locked || in_lock_zone != was_in_lock_zone {
                                         was_in_lock_zone = in_lock_zone;
 
                                         let _ = window.emit("hover-lock-zone", in_lock_zone);
                                         println!(
-                                            "Lock Update | Mouse: ({},{}) | Win: ({},{}) {}x{} | InLockZone: {}",
-                                            x, y, wx, wy, ww, wh, in_lock_zone
+                                            "[Lock] Mouse=({},{})  Win=({},{})  {}x{}  InWin={}  InZone={}  ZoneTop={} ZoneBot={}",
+                                            x, y, wx, wy, ww, wh, in_window, in_lock_zone, zone_top, zone_bot
                                         );
                                     }
                                 } else {

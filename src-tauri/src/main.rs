@@ -6,9 +6,7 @@ use tauri::{
     Manager, Emitter,
 };
 use std::sync::{Arc, Mutex};
-#[cfg(target_os = "windows")]
 use std::thread;
-#[cfg(target_os = "windows")]
 use std::time::Duration;
 
 #[cfg(target_os = "windows")]
@@ -99,10 +97,10 @@ fn main() {
                 macos_worker.start();
             }
 
-            // --- Windows 专属：锁区域鼠标穿透检测 ---
-            #[cfg(target_os = "windows")]
+            // --- 锁区域鼠标穿透检测 (Windows: GetCursorPos / macOS: NSEvent) ---
             {
                 let state_clone = app_state.clone();
+                let app_handle = app.handle().clone();
                 thread::spawn(move || {
                     let mut was_in_lock_zone = false;
                     let mut was_hovering_window = false;
@@ -119,13 +117,7 @@ fn main() {
                         if is_locked {
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
-                                    let mut point = POINT::default();
-                                    if unsafe { GetCursorPos(&mut point) }.is_err() {
-                                        continue;
-                                    }
-
-                                    let x = point.x;
-                                    let y = point.y;
+                                    let (x, y) = get_mouse_pos();
                                     let wx = pos.x;
                                     let wy = pos.y;
                                     let ww = size.width as i32;
@@ -141,11 +133,14 @@ fn main() {
                                     let lock_zone_height = 60i32.min(wh);
                                     let lock_zone_left = wx + (ww / 2) - (lock_zone_width / 2);
                                     let lock_zone_right = wx + (ww / 2) + (lock_zone_width / 2);
-                                    let lock_zone_top = wy;
-                                    let lock_zone_bottom = wy + lock_zone_height;
+
+                                    #[cfg(target_os = "windows")]
+                                    let (lock_zone_top, lock_zone_bottom) = (wy, wy + lock_zone_height);
+                                    #[cfg(target_os = "macos")]
+                                    let (lock_zone_top, lock_zone_bottom) = (wy + wh, wy + wh - lock_zone_height);
 
                                     let in_lock_zone = x >= lock_zone_left && x <= lock_zone_right
-                                        && y >= lock_zone_top && y <= lock_zone_bottom;
+                                        && y >= lock_zone_bottom && y <= lock_zone_top;
 
                                     if !was_locked || in_lock_zone != was_in_lock_zone {
                                         was_in_lock_zone = in_lock_zone;
@@ -169,9 +164,6 @@ fn main() {
                 });
             }
 
-            #[cfg(not(target_os = "windows"))]
-            let _ = app_state;
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -183,4 +175,34 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Platform-specific mouse position: returns (x, y) in screen coordinates.
+/// Cocoa (macOS): origin bottom-left, matches outer_position().
+/// Windows: origin top-left, matches outer_position().
+#[cfg(target_os = "windows")]
+fn get_mouse_pos() -> (i32, i32) {
+    let mut point = POINT::default();
+    if unsafe { GetCursorPos(&mut point) }.is_err() {
+        return (0, 0);
+    }
+    (point.x, point.y)
+}
+
+#[cfg(target_os = "macos")]
+fn get_mouse_pos() -> (i32, i32) {
+    use objc2::msg_send;
+    use objc2::class;
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    struct NSPoint { x: f64, y: f64 }
+
+    unsafe impl objc2::encode::Encode for NSPoint {
+        const ENCODING: objc2::Encoding =
+            objc2::Encoding::Struct("CGPoint", &[objc2::Encoding::Double, objc2::Encoding::Double]);
+    }
+
+    let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
+    (point.x as i32, point.y as i32)
 }

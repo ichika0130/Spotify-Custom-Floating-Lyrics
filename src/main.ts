@@ -30,7 +30,6 @@ const LRC_REGEX = /\[(\d+):(\d+)(?:[:.](\d+))?\](.*)/;
 // 获取 Tauri 窗口实例
 const appWindow = getCurrentWindow();
 const appElement = document.getElementById('app');
-const isMacOS = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
 // 歌词偏移量（毫秒），用于手动微调
 let lyricOffset = 0; 
@@ -89,10 +88,10 @@ listen('lock-status', async (event) => {
   if (locked) {
     appElement?.classList.add('locked');
     appElement?.removeAttribute('data-tauri-drag-region');
-    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(true); } catch (e) { console.error(e); }
+    try { await appWindow.setIgnoreCursorEvents(true); } catch (e) { console.error(e); }
   } else {
     appElement?.classList.remove('locked');
-    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(false); } catch (e) { console.error(e); }
+    try { await appWindow.setIgnoreCursorEvents(false); } catch (e) { console.error(e); }
     console.log("窗口已解锁");
   }
 }).then((unlisten) => { unlistenFns.push(unlisten); });
@@ -260,7 +259,7 @@ const onUnlockClick = async (e: Event) => {
   if (uiState.isLocked) {
     uiState.setLocked(false);
     appElement?.classList.remove('locked');
-    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(false); } catch (err) { console.error(err); }
+    try { await appWindow.setIgnoreCursorEvents(false); } catch (err) { console.error(err); }
     invoke('set_lock_state', { locked: false }).catch(console.error);
     console.log("已解锁");
   }
@@ -275,7 +274,7 @@ const onLockClick = async (e: Event) => {
   uiState.setLocked(true);
   appElement?.classList.add('locked');
   
-  if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(true); } catch (err) { console.error(err); }
+  try { await appWindow.setIgnoreCursorEvents(true); } catch (err) { console.error(err); }
   invoke('set_lock_state', { locked: true }).catch(console.error);
 
   console.log("已锁定。鼠标悬停窗口顶部中间可解锁。");

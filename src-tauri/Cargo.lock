@@ -3345,6 +3345,7 @@ dependencies = [
 name = "spotify-lyrics"
 version = "0.1.0"
 dependencies = [
+ "objc2",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

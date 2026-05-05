@@ -19,7 +19,7 @@ html, body {
 #app {
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.01); 
+  background-color: transparent;
   display: flex;
   flex-direction: column;
   /* 靠下或居中对齐，QQ 音乐通常歌词占大头 */

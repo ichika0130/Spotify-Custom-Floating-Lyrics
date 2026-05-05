@@ -17,6 +17,7 @@
       "width": 1000,
       "height": 200,
       "transparent": true,
+      "backgroundColor": "#00000000",
       "decorations": false,
       "alwaysOnTop": true,
       "maximizable": false,

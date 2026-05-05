@@ -1,3 +1,5 @@
+#![cfg(target_os = "windows")]
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
@@ -174,7 +176,7 @@ impl SmtcWorker {
         let needs_hook;
         {
             let mut locked_state = state.lock().unwrap();
-            
+
             needs_hook = match (&locked_state.current_session, &target_session) {
                 (None, Some(_)) => true,
                 (Some(_), None) => {
@@ -184,8 +186,10 @@ impl SmtcWorker {
                     false
                 },
                 (Some(_), Some(_)) => {
-                    // Force re-hook to be safe
-                    true 
+                    // Session already hooked — do not re-register handlers to avoid duplicates.
+                    // If Spotify restarts, SessionsChanged fires (Some,None) then (None,Some),
+                    // which correctly triggers a fresh hook.
+                    false
                 },
                 (None, None) => false,
             };

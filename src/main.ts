@@ -120,8 +120,10 @@ listen('hover-lock-zone', (event) => {
   if (uiState.isLocked) {
     if (inLockZone) {
       appElement?.classList.add('mouse-in-lock');
+      appWindow.setIgnoreCursorEvents(false).catch(() => {});
     } else {
       appElement?.classList.remove('mouse-in-lock');
+      appWindow.setIgnoreCursorEvents(true).catch(() => {});
     }
   }
 }).then((unlisten) => { unlistenFns.push(unlisten); });

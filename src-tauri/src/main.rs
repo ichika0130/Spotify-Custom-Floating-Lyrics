@@ -145,24 +145,10 @@ fn main() {
                                     if !was_locked || in_lock_zone != was_in_lock_zone {
                                         was_in_lock_zone = in_lock_zone;
 
-                                        let ignore = !in_lock_zone;
-                                        #[cfg(target_os = "windows")]
-                                        let res = window.set_ignore_cursor_events(ignore);
-                                        #[cfg(target_os = "macos")]
-                                        let res = {
-                                            let ah = app_handle.clone();
-                                            let ah2 = ah.clone();
-                                            ah.run_on_main_thread(move || {
-                                                if let Some(w) = ah2.get_webview_window("main") {
-                                                    let _ = w.set_ignore_cursor_events(ignore);
-                                                }
-                                            })
-                                        };
-
                                         let _ = window.emit("hover-lock-zone", in_lock_zone);
                                         println!(
-                                            "Lock Update | Mouse: ({},{}) | Win: ({},{}) {}x{} | InLockZone: {} | Ignore: {} | Res: {:?}",
-                                            x, y, wx, wy, ww, wh, in_lock_zone, ignore, res
+                                            "Lock Update | Mouse: ({},{}) | Win: ({},{}) {}x{} | InLockZone: {}",
+                                            x, y, wx, wy, ww, wh, in_lock_zone
                                         );
                                     }
                                 } else {

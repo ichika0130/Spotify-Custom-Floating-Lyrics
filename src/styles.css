@@ -72,6 +72,9 @@ html, body {
 
 .locked.mouse-in-lock #control-panel {
   pointer-events: auto !important;
+  /* 0.004 alpha — invisible to humans, but macOS compositor sees
+     non-zero alpha and captures clicks instead of passing through */
+  background: rgba(0, 0, 0, 0.004) !important;
 }
 
 .locked.mouse-in-lock #unlock-btn {

@@ -116,12 +116,8 @@ fn main() {
 
                         if is_locked {
                             if let Some(window) = app_handle.get_webview_window("main") {
-                                if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+                                if let Some((wx, wy, ww, wh)) = get_window_rect(&window) {
                                     let (x, y) = get_mouse_pos();
-                                    let wx = pos.x;
-                                    let wy = pos.y;
-                                    let ww = size.width as i32;
-                                    let wh = size.height as i32;
 
                                     let in_window = x >= wx && x <= wx + ww && y >= wy && y <= wy + wh;
                                     if in_window != was_hovering_window || !was_locked {
@@ -187,19 +183,75 @@ fn get_mouse_pos() -> (i32, i32) {
 }
 
 #[cfg(target_os = "macos")]
-fn get_mouse_pos() -> (i32, i32) {
+mod macos_utils {
     use objc2::msg_send;
     use objc2::class;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
-    struct NSPoint { x: f64, y: f64 }
+    pub struct NSPoint(pub f64, pub f64);
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct NSSize(pub f64, pub f64);
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct NSRect(pub NSPoint, pub NSSize);
 
     unsafe impl objc2::encode::Encode for NSPoint {
         const ENCODING: objc2::Encoding =
             objc2::Encoding::Struct("CGPoint", &[objc2::Encoding::Double, objc2::Encoding::Double]);
     }
 
-    let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
-    (point.x as i32, point.y as i32)
+    unsafe impl objc2::encode::Encode for NSSize {
+        const ENCODING: objc2::Encoding =
+            objc2::Encoding::Struct("CGSize", &[objc2::Encoding::Double, objc2::Encoding::Double]);
+    }
+
+    unsafe impl objc2::encode::Encode for NSRect {
+        const ENCODING: objc2::Encoding =
+            objc2::Encoding::Struct("CGRect", &[NSPoint::ENCODING, NSSize::ENCODING]);
+    }
+
+    pub fn get_mouse_pos() -> (i32, i32) {
+        let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
+        (point.0 as i32, point.1 as i32)
+    }
+
+    /// Get real-time window frame via `[NSWindow frame]` (Cocoa screen coords).
+    /// Tauri's outer_position() can return stale data; this fetches directly.
+    pub fn get_window_rect(
+        window: &tauri::WebviewWindow,
+    ) -> Option<(i32, i32, i32, i32)> {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use objc2::runtime::NSObject;
+        let wh = window.window_handle().ok()?;
+        let h = if let RawWindowHandle::AppKit(h) = wh.as_raw() { h } else { return None };
+        unsafe {
+            let view: *mut NSObject = h.ns_view.as_ptr().cast();
+            let wnd: *mut NSObject = msg_send![view, window];
+            let rect: NSRect = msg_send![wnd, frame];
+            Some((rect.0.0 as i32, rect.0.1 as i32, rect.1.0 as i32, rect.1.1 as i32))
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+use macos_utils::{get_mouse_pos, get_window_rect};
+
+#[cfg(target_os = "windows")]
+fn get_mouse_pos() -> (i32, i32) {
+    let mut point = POINT::default();
+    if unsafe { GetCursorPos(&mut point) }.is_err() {
+        return (0, 0);
+    }
+    (point.x, point.y)
+}
+
+#[cfg(target_os = "windows")]
+fn get_window_rect(window: &tauri::WebviewWindow) -> Option<(i32, i32, i32, i32)> {
+    let pos = window.outer_position().ok()?;
+    let size = window.outer_size().ok()?;
+    Some((pos.x, pos.y, size.width as i32, size.height as i32))
 }

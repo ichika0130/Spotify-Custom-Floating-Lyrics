@@ -30,6 +30,7 @@ const LRC_REGEX = /\[(\d+):(\d+)(?:[:.](\d+))?\](.*)/;
 // 获取 Tauri 窗口实例
 const appWindow = getCurrentWindow();
 const appElement = document.getElementById('app');
+const isMacOS = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
 // 歌词偏移量（毫秒），用于手动微调
 let lyricOffset = 0; 
@@ -50,11 +51,14 @@ let hasPrefetched = false;    // 防止对同一首歌重复预加载
 // 2. 交互事件处理 (拖拽、锁定、双击)
 // ============================================================================
 
+// Track cleanup handles for event listeners
+const unlistenFns: (() => void)[] = [];
+
 /**
  * 自定义拖拽逻辑 (替代 data-tauri-drag-region)
  * 允许在非交互区域拖动窗口，但在锁定模式下禁用
  */
-document.addEventListener('mousedown', async (e) => {
+const onMouseDown = async (e: MouseEvent) => {
   // 如果点击的是按钮、输入框或链接，不触发拖拽
   const target = e.target as HTMLElement;
   if (['BUTTON', 'INPUT', 'A'].includes(target.tagName) || target.closest('button')) {
@@ -71,33 +75,34 @@ document.addEventListener('mousedown', async (e) => {
   if (e.button === 0) {
     await appWindow.startDragging();
   }
-});
+};
+document.addEventListener('mousedown', onMouseDown);
 
 /**
  * 监听来自 Rust 后端的锁定状态变更事件
  * (例如通过系统托盘操作)
  */
 listen('lock-status', async (event) => {
-  const locked = event.payload as boolean;
+  const locked = Boolean(event.payload);
   uiState.setLocked(locked);
   
   if (locked) {
     appElement?.classList.add('locked');
-    appElement?.removeAttribute('data-tauri-drag-region'); // 移除拖拽区域标记
-    await appWindow.setIgnoreCursorEvents(true); // 开启鼠标穿透
+    appElement?.removeAttribute('data-tauri-drag-region');
+    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(true); } catch (e) { console.error(e); }
   } else {
     appElement?.classList.remove('locked');
-    await appWindow.setIgnoreCursorEvents(false); // 关闭鼠标穿透
+    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(false); } catch (e) { console.error(e); }
     console.log("窗口已解锁");
   }
-});
+}).then((unlisten) => { unlistenFns.push(unlisten); });
 
 /**
  * 监听 Rust 发来的鼠标区域状态 (整个窗口)
  * 用于在锁定模式下显示半透明背景等提示
  */
 listen('hover-window', (event) => {
-  const inWindow = event.payload as boolean;
+  const inWindow = Boolean(event.payload);
   if (uiState.isLocked) {
     if (inWindow) {
       appElement?.classList.add('mouse-in');
@@ -105,14 +110,14 @@ listen('hover-window', (event) => {
       appElement?.classList.remove('mouse-in');
     }
   }
-});
+}).then((unlisten) => { unlistenFns.push(unlisten); });
 
 /**
  * 监听 Rust 发来的“解锁区域”悬停事件 (窗口顶部)
  * 用于在锁定模式下，当鼠标悬停在特定区域时临时允许交互（显示解锁按钮）
  */
 listen('hover-lock-zone', (event) => {
-  const inLockZone = event.payload as boolean;
+  const inLockZone = Boolean(event.payload);
   if (uiState.isLocked) {
     if (inLockZone) {
       appElement?.classList.add('mouse-in-lock');
@@ -120,7 +125,7 @@ listen('hover-lock-zone', (event) => {
       appElement?.classList.remove('mouse-in-lock');
     }
   }
-});
+}).then((unlisten) => { unlistenFns.push(unlisten); });
 
 /**
  * 拦截双击事件，防止触发默认的全屏/最大化行为
@@ -132,6 +137,13 @@ const preventMax = (e: MouseEvent) => {
 };
 window.addEventListener('dblclick', preventMax, true);
 document.getElementById('app')?.addEventListener('dblclick', preventMax, true);
+
+// 收集 DOM listener 清理信息
+const domCleanups: (() => void)[] = [
+  () => window.removeEventListener('dblclick', preventMax, true),
+  () => document.getElementById('app')?.removeEventListener('dblclick', preventMax, true),
+  () => document.removeEventListener('mousedown', onMouseDown),
+];
 
 // ============================================================================
 // 3. Spotify 认证与登录 UI
@@ -228,57 +240,56 @@ async function safeControl(cmd: string) {
 }
 
 // 绑定控制按钮事件
-document.getElementById('prev')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  safeControl('prev');
-});
+const onPrevClick = (e: Event) => { e.stopPropagation(); safeControl('prev'); };
+const onPlayPauseClick = (e: Event) => { e.stopPropagation(); safeControl('playpause'); };
+const onNextClick = (e: Event) => { e.stopPropagation(); safeControl('next'); };
 
-document.getElementById('play-pause')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  safeControl('playpause');
-});
+document.getElementById('prev')?.addEventListener('click', onPrevClick);
+document.getElementById('play-pause')?.addEventListener('click', onPlayPauseClick);
+document.getElementById('next')?.addEventListener('click', onNextClick);
 
-document.getElementById('next')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  safeControl('next');
-});
+domCleanups.push(
+  () => document.getElementById('prev')?.removeEventListener('click', onPrevClick),
+  () => document.getElementById('play-pause')?.removeEventListener('click', onPlayPauseClick),
+  () => document.getElementById('next')?.removeEventListener('click', onNextClick),
+);
 
 // 解锁按钮事件
-document.getElementById('unlock-btn')?.addEventListener('click', async (e) => {
+const onUnlockClick = async (e: Event) => {
   e.stopPropagation();
   if (uiState.isLocked) {
     uiState.setLocked(false);
     appElement?.classList.remove('locked');
-    // 恢复鼠标响应
-    await appWindow.setIgnoreCursorEvents(false);
-    // 同步给 Rust 后端
+    if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(false); } catch (err) { console.error(err); }
     invoke('set_lock_state', { locked: false }).catch(console.error);
     console.log("已解锁");
   }
-});
+};
+document.getElementById('unlock-btn')?.addEventListener('click', onUnlockClick);
+domCleanups.push(() => document.getElementById('unlock-btn')?.removeEventListener('click', onUnlockClick));
 
 // 锁定按钮事件
-document.getElementById('lock-btn')?.addEventListener('click', async (e) => {
+const onLockClick = async (e: Event) => {
   e.stopPropagation();
   
   uiState.setLocked(true);
   appElement?.classList.add('locked');
   
-  // 物理锁定：设置鼠标穿透
-  await appWindow.setIgnoreCursorEvents(true);
-  // 同步状态给 Rust 后端
+  if (!isMacOS) try { await appWindow.setIgnoreCursorEvents(true); } catch (err) { console.error(err); }
   invoke('set_lock_state', { locked: true }).catch(console.error);
 
   console.log("已锁定。鼠标悬停窗口顶部中间可解锁。");
   showToast("已锁定：鼠标悬停窗口顶部解锁");
-});
+};
+document.getElementById('lock-btn')?.addEventListener('click', onLockClick);
+domCleanups.push(() => document.getElementById('lock-btn')?.removeEventListener('click', onLockClick));
 
 /**
  * 显示临时的 Toast 提示消息
  * @param msg 消息内容
  */
 function showToast(msg: string) {
-  const toast = document.getElementById("toast"); // 需要在 HTML 中添加此元素，或复用 info-row
+  const toast = document.getElementById("toast");
   if (toast) {
     toast.innerText = msg;
     toast.classList.add("show");
@@ -286,12 +297,15 @@ function showToast(msg: string) {
       toast.classList.remove("show");
     }, 3000);
   } else {
-    // 降级方案：使用 info-row
     const infoEl = document.getElementById("info-row");
     if (infoEl) {
         const original = infoEl.innerText;
+        toastActive = true;
         infoEl.innerText = msg;
-        setTimeout(() => { if(infoEl.innerText === msg) infoEl.innerText = original; }, 2000);
+        setTimeout(() => {
+          if (infoEl.innerText === msg) infoEl.innerText = original;
+          toastActive = false;
+        }, 2000);
     }
   }
 }
@@ -417,12 +431,12 @@ async function syncLyrics() {
 /**
  * 更新顶部歌曲信息栏
  */
+let toastActive = false;
 function updateInfoDisplay(title: string, artist: string) {
   const infoEl = document.getElementById("info-row");
   if (!infoEl) return;
   
-  // 忽略 Toast 消息期间的更新
-  if (infoEl.innerText.startsWith("Offset:") || infoEl.innerText.startsWith("已锁定")) return;
+  if (toastActive) return;
 
   const combinedText = (title && artist) ? `${title} - ${artist}` : "未在播放";
   if (infoEl.innerText !== combinedText) {
@@ -450,7 +464,15 @@ function updateLyricDisplay(rawPosition: number) {
       return;
   }
 
-  if (uiState.lrcLines.length === 0) return; // 应该被 NOT_FOUND 覆盖，但也可能在 IDLE
+  if (uiState.lrcLines.length === 0) {
+    if (uiState.currentTrack) {
+      const fallback = `${uiState.currentTrack.title} - ${uiState.currentTrack.artist}`;
+      if (lrcEl.innerText !== fallback) {
+        lrcEl.innerText = fallback;
+      }
+    }
+    return;
+  }
 
   // 2. 应用偏移
   const position = rawPosition + lyricOffset;
@@ -504,23 +526,15 @@ function updateLyricDisplay(rawPosition: number) {
  * 异步获取并解析歌词
  */
 async function fetchAndParseLyrics(title: string, artist: string, duration: number, fetchId: number) {
-  // 如果请求已过期，直接返回
   if (fetchId !== lastFetchId) return;
 
-  // 设置状态为搜索中
   uiState.setSearchStatus(SearchStatus.SEARCHING);
-  uiState.setLrcLines([]); // 清空旧歌词
+  uiState.setLrcLines([]);
 
   try {
-    // 调用 LyricManager 获取歌词 (包含缓存、ISRC、网络搜索)
     const rawLrc = await LyricManager.getLyrics({
         title,
         artist,
-        // SMTC duration 是 100ns 单位，LyricManager 期望秒
-        // 但这里传入的 duration 已经是处理过的? 
-        // 检查 syncLyrics: const { duration } = data; data 来自 Rust
-        // Rust lib.rs: duration = timeline.EndTime().Duration / 10000; (ms)
-        // 所以这里需要 / 1000 转换为秒
         duration: duration / 1000
     });
 
@@ -536,13 +550,12 @@ async function fetchAndParseLyrics(title: string, artist: string, duration: numb
       .map(line => {
         const match = line.match(LRC_REGEX);
         if (match) {
-          const min = parseInt(match[1]);
-          const sec = parseInt(match[2]);
+          const min = parseInt(match[1], 10);
+          const sec = parseInt(match[2], 10);
           let msStr = match[3] || "0";
-          // 补齐毫秒位数
           if (msStr.length === 1) msStr += "00";
           else if (msStr.length === 2) msStr += "0";
-          const ms = parseInt(msStr);
+          const ms = parseInt(msStr, 10);
           
           return { 
             time: min * 60000 + sec * 1000 + ms, 
@@ -589,11 +602,11 @@ function renderLoop() {
     }
 
     updateLyricDisplay(currentPos);
-    requestAnimationFrame(renderLoop);
+    rafHandle = requestAnimationFrame(renderLoop);
 }
 
 // 启动渲染循环
-requestAnimationFrame(renderLoop);
+let rafHandle = requestAnimationFrame(renderLoop);
 
 // 主同步循环控制器
 let isMounted = true;
@@ -657,11 +670,13 @@ syncLoop();
 window.addEventListener('beforeunload', () => {
     isMounted = false;
     controlQueue.setMounted(false);
+    cancelAnimationFrame(rafHandle);
+    unlistenFns.forEach(fn => fn());
+    domCleanups.forEach(fn => fn());
 });
 
 // 启动时的连接检查
 (async () => {
-    SpotifyAuth.init();
     if (SpotifyAuth.isLoggedIn()) {
         const active = await SpotifyAuth.checkConnection();
         if (!active) {

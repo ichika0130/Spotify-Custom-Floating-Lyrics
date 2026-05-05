@@ -399,8 +399,8 @@ export class LyricManager {
                     key: filename.replace('.lrc', '')
                 });
             }
-            // 异步保存索引更新
-            this.saveCacheIndex();
+            // 保存索引更新
+            this.saveCacheIndex().catch(e => console.error('[Cache] 索引保存失败:', e));
 
             return content;
         } catch (e) {
@@ -503,91 +503,80 @@ export class LyricManager {
      * @param timeoutMs 超时时间（毫秒）
      */
     private static async searchLrcLibWithTimeout(track: TrackInfo, timeoutMs: number): Promise<string | null> {
-        return new Promise(async (resolve, reject) => {
-            let isFinished = false;
+        let isFinished = false;
 
-            // 设置超时计时器
-            const timer = setTimeout(() => {
+        const timeout = new Promise<never>((_, reject) => {
+            setTimeout(() => {
                 if (!isFinished) {
                     isFinished = true;
                     console.warn(`[Network] 搜索超时 (${timeoutMs}ms): ${track.title}`);
                     reject(new Error("Timeout"));
                 }
             }, timeoutMs);
+        });
 
+        const doSearch = async (): Promise<string | null> => {
             try {
-                // 1. 清洗标题，移除无关信息以提高匹配率
                 const cleanTitle = this.cleanTitle(track.title);
-                
-                // 2. 构造搜索 URL
-                // 使用通用搜索 q=Title Artist 而不是字段匹配，因为元数据可能不一致
                 const query = encodeURIComponent(`${cleanTitle} ${track.artist}`);
                 const url = `https://lrclib.net/api/search?q=${query}`;
                 
                 console.log(`[Network] 请求 URL: ${url}`);
                 
-                // 3. 通过 Rust 后端发起请求
                 const res = await invoke<string>('fetch_proxy', { url });
                 
-                if (isFinished) return; // 如果已超时，丢弃结果
+                if (isFinished) return null;
 
                 const data = JSON.parse(res);
                 
                 if (Array.isArray(data) && data.length > 0) {
-                    // LRCLIB 返回的 duration 是秒，但有时可能是毫秒（取决于 API 版本，目前主要是秒）
-                    // 我们的 track.duration 是秒
-                    // 简单判断：如果 API 返回 > 1000，认为是毫秒，转换为秒
                     let targetDuration = track.duration;
                     
-                    // 4. 时长校验逻辑
                     if (targetDuration > 0) {
-                        // 在结果中寻找时长匹配的项 (误差 ±3秒)
                         const bestMatch = data.find((item: any) => {
                             let itemDuration = item.duration;
-                            // 归一化为秒
-                            // if (itemDuration > 1000) itemDuration /= 1000; 
-                            // 实际上 LRCLIB 文档说是秒，但保持防御性编程
-                            
                             const diff = Math.abs(itemDuration - targetDuration);
                             return diff <= 3;
                         });
 
                         if (bestMatch) {
                             isFinished = true;
-                            clearTimeout(timer);
                             console.log(`[Network] 找到匹配歌词 (时长差: ${Math.abs(bestMatch.duration - targetDuration).toFixed(2)}s)`);
-                            resolve(bestMatch.syncedLyrics || bestMatch.plainLyrics || null);
-                            return;
+                            return bestMatch.syncedLyrics || bestMatch.plainLyrics || null;
                         } else {
                             console.log(`[Network] 未找到时长匹配的歌词 (目标: ${targetDuration}s)`);
                         }
                     } else {
-                        // 如果没有提供时长，只能回退到第一个结果
                         console.warn("[Network] 无时长信息，使用第一个搜索结果");
                         const first = data[0];
                         isFinished = true;
-                        clearTimeout(timer);
-                        resolve(first.syncedLyrics || first.plainLyrics || null);
-                        return;
+                        return first.syncedLyrics || first.plainLyrics || null;
                     }
                 } else {
                     console.log("[Network] API 返回空数组");
                 }
                 
-                // 未找到
                 if (!isFinished) {
                     isFinished = true;
-                    clearTimeout(timer);
-                    resolve(null);
+                    return null;
                 }
             } catch (e) {
                 if (!isFinished) {
                     isFinished = true;
-                    clearTimeout(timer);
                     console.error("[Network] 请求异常:", e);
-                    reject(e);
+                    throw e;
                 }
             }
-        });
+            return null;
+        };
+
+        try {
+            return await Promise.race([doSearch(), timeout]);
+        } catch (e) {
+            if (e instanceof Error && e.message === "Timeout") {
+                return null;
+            }
+            throw e;
+        }
     }
 }

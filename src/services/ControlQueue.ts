@@ -59,25 +59,25 @@ export class ControlQueue {
     }
 
     /**
-     * 将命令推入队列并尝试执行
+     * 将命令推入队列并等待执行完成 (fire-and-forget queue, resolves once enqueued)
      * 包含防抖逻辑：如果队尾已经是相同命令，则忽略
      * @param cmd 控制命令 ('play', 'pause', 'next', 'prev', 'playpause')
      */
     async push(cmd: string) {
-        // 防抖：如果队列中最后一个命令与当前命令相同，则不重复添加
         if (this.queue.length > 0 && this.queue[this.queue.length - 1] === cmd) {
             console.log(`[Control] '${cmd}' 被防抖 (已在队列中)`);
             return;
         }
         
-        // 限制队列长度，防止积压过多
         if (this.queue.length >= 3) {
              console.warn(`[Control] 队列已满，丢弃命令 '${cmd}'`);
              return;
         }
 
         this.queue.push(cmd);
-        this.process();
+        if (!this.isProcessing) {
+            this.process();
+        }
     }
 
     /**

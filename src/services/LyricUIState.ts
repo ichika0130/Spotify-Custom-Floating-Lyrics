@@ -109,8 +109,6 @@ export class LyricUIState {
         this.lrcLines = lines;
         if (lines.length > 0) {
             this.setSearchStatus(SearchStatus.FOUND);
-        } else {
-            // 注意：空歌词可能是纯音乐，也可能是未找到，由调用方决定状态
         }
     }
 

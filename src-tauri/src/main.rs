@@ -6,7 +6,9 @@ use tauri::{
     Manager, Emitter,
 };
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "windows")]
 use std::thread;
+#[cfg(target_os = "windows")]
 use std::time::Duration;
 
 #[cfg(target_os = "windows")]
@@ -68,7 +70,7 @@ fn main() {
                     match event.id.as_ref() {
                         "unlock" => {
                             if let Some(window) = app_handle.get_webview_window("main") {
-                                window.set_ignore_cursor_events(false).unwrap();
+                                let _ = window.set_ignore_cursor_events(false);
                                 let _ = window.emit("lock-status", false);
                                 let state = app_handle.state::<Arc<Mutex<AppState>>>();
                                 let mut s = state.lock().unwrap();
@@ -118,7 +120,9 @@ fn main() {
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
                                     let mut point = POINT::default();
-                                    let _ = unsafe { GetCursorPos(&mut point) };
+                                    if unsafe { GetCursorPos(&mut point) }.is_err() {
+                                        continue;
+                                    }
 
                                     let x = point.x;
                                     let y = point.y;
@@ -133,8 +137,8 @@ fn main() {
                                         let _ = window.emit("hover-window", in_window);
                                     }
 
-                                    let lock_zone_width = 100;
-                                    let lock_zone_height = 60;
+                                    let lock_zone_width = 100i32.min(ww);
+                                    let lock_zone_height = 60i32.min(wh);
                                     let lock_zone_left = wx + (ww / 2) - (lock_zone_width / 2);
                                     let lock_zone_right = wx + (ww / 2) + (lock_zone_width / 2);
                                     let lock_zone_top = wy;
@@ -165,9 +169,8 @@ fn main() {
                 });
             }
 
-            // macOS 上 app_state 不会被移入任何线程，避免 unused 警告
-            #[cfg(target_os = "macos")]
-            let _ = (app_state, thread::spawn(|| {}), Duration::from_secs(0));
+            #[cfg(not(target_os = "windows"))]
+            let _ = app_state;
 
             Ok(())
         })

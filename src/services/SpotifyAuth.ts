@@ -61,7 +61,7 @@ export class SpotifyAuth {
         this.clientId = localStorage.getItem('spotify_client_id') || '';
         this.accessToken = localStorage.getItem('spotify_access_token') || '';
         this.refreshToken = localStorage.getItem('spotify_refresh_token') || '';
-        this.expirationTime = parseInt(localStorage.getItem('spotify_expiration_time') || '0');
+        this.expirationTime = parseInt(localStorage.getItem('spotify_expiration_time') || '0', 10);
         
         if (!this.clientId) {
             console.log("[SpotifyAuth] 未找到 Client ID，运行在可选模式 (无 Spotify 集成)");
@@ -132,16 +132,16 @@ export class SpotifyAuth {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            // 204 No Content: 认证成功但当前无播放内容
+            // 204 No Content: 认证成功但当前无播放内容（通常表示无活跃设备）
             if (res.status === 204) {
-                console.warn('[SpotifyAuth] 连接活跃但无播放内容');
-                return true;
+                console.warn('[SpotifyAuth] 无活跃设备，尝试激活首选设备...');
+                return await this.activateFirstDevice();
             }
             
-            // 404 Not Found: 无活跃设备
+            // 404 Not Found: 无播放器状态
             if (res.status === 404) {
-                console.warn('[SpotifyAuth] 未找到活跃设备，尝试激活首选设备...');
-                return await this.activateFirstDevice();
+                console.warn('[SpotifyAuth] 未找到播放器状态');
+                return false;
             }
 
             // 401 Unauthorized: 令牌失效
@@ -289,6 +289,11 @@ export class SpotifyAuth {
             body: params
         });
 
+        if (!res.ok) {
+            const errText = await res.text().catch(() => res.statusText);
+            throw new Error(`Token exchange failed (${res.status}): ${errText}`);
+        }
+
         const data: TokenResponse = await res.json();
         this.saveSession(data);
     }
@@ -310,6 +315,12 @@ export class SpotifyAuth {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params
         });
+
+        if (!res.ok) {
+            console.error('[SpotifyAuth] Token refresh failed:', res.status, res.statusText);
+            this.logout();
+            return;
+        }
 
         const data = await res.json();
         this.saveSession(data);
@@ -350,8 +361,12 @@ export class SpotifyAuth {
         const encoder = new TextEncoder();
         const data = encoder.encode(codeVerifier);
         const digest = await window.crypto.subtle.digest('SHA-256', data);
-        
-        return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        const bytes = new Uint8Array(digest);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary)
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
             .replace(/=+$/, '');

@@ -200,38 +200,49 @@ impl SmtcWorker {
                 println!("[SMTC] Hooking into session events...");
                 
                 // Hook MediaPropertiesChanged
+                // NOTE: Do NOT clone the session into the handler closure — it would create
+                // a COM reference cycle (Session ↔ TypedEventHandler), leaking COM objects
+                // every time the Spotify session changes.
                 {
                     let state_clone = state.clone();
                     let app_handle_clone = app_handle.clone();
-                    let session_clone = session.clone();
                     let prop_handler = TypedEventHandler::new(move |_, _| {
                         let state = state_clone.clone();
                         let app_handle = app_handle_clone.clone();
-                        let session = session_clone.clone();
                         tauri::async_runtime::spawn(async move {
-                            Self::broadcast_update(&session, &state, &app_handle, "MediaPropertiesChanged").await;
+                            let session = {
+                                let locked = state.lock().unwrap();
+                                locked.current_session.clone()
+                            };
+                            if let Some(s) = session {
+                                Self::broadcast_update(&s, &state, &app_handle, "MediaPropertiesChanged").await;
+                            }
                         });
                         Ok(())
                     });
                     let _ = session.MediaPropertiesChanged(&prop_handler);
-                } // prop_handler dropped here
+                }
 
                 // Hook PlaybackInfoChanged
                 {
                     let state_clone = state.clone();
                     let app_handle_clone = app_handle.clone();
-                    let session_clone = session.clone();
                     let playback_handler = TypedEventHandler::new(move |_, _| {
                         let state = state_clone.clone();
                         let app_handle = app_handle_clone.clone();
-                        let session = session_clone.clone();
                         tauri::async_runtime::spawn(async move {
-                            Self::broadcast_update(&session, &state, &app_handle, "PlaybackInfoChanged").await;
+                            let session = {
+                                let locked = state.lock().unwrap();
+                                locked.current_session.clone()
+                            };
+                            if let Some(s) = session {
+                                Self::broadcast_update(&s, &state, &app_handle, "PlaybackInfoChanged").await;
+                            }
                         });
                         Ok(())
                     });
                     let _ = session.PlaybackInfoChanged(&playback_handler);
-                } // playback_handler dropped here
+                }
 
                 // Initial broadcast
                 Self::broadcast_update(&session, state, app_handle, "Initial").await;

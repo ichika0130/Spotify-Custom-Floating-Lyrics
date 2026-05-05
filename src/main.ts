@@ -276,7 +276,6 @@ const onLockClick = async (e: Event) => {
   uiState.setLocked(true);
   appElement?.classList.add('locked');
   
-  try { await appWindow.setIgnoreCursorEvents(true); } catch (err) { console.error(err); }
   invoke('set_lock_state', { locked: true }).catch(console.error);
 
   console.log("已锁定。鼠标悬停窗口顶部中间可解锁。");

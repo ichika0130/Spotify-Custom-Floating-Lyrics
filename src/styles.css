@@ -57,16 +57,6 @@ html, body {
   pointer-events: none; /* 此时依然穿透，直到进入 mouse-in-lock 状态 */
 }
 
-/* 锁定模式下，解锁按钮始终可见（不依赖 Rust 鼠标检测，兼容 macOS） */
-.locked #unlock-btn {
-  display: block !important;
-  opacity: 0.5;
-}
-
-.locked #control-panel {
-  pointer-events: auto;
-}
-
 .locked.mouse-in #unlock-btn {
   display: block !important;
   opacity: 0.6; /* 半透明提示 */

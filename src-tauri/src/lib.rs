@@ -184,7 +184,7 @@ pub async fn spotify_control_logic(_command: String) -> Result<(), String> {
 
 pub async fn fetch_proxy_logic(url: String) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| e.to_string())?;
     let res = client.get(url)

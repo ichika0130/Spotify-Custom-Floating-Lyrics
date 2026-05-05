@@ -18,7 +18,7 @@ Tauri 2.x (Rust + TypeScript) 浮动歌词应用。跨平台：Windows / macOS /
 ### Tauri Commands（跨平台）
 
 - `get_spotify_track` → 单次拉取当前播放信息
-- `fetch_proxy(url)` → HTTP 代理请求（绕过 CORS，10s 超时）
+- `fetch_proxy(url)` → HTTP 代理请求（绕过 CORS，15s 超时）
 - `spotify_control(command)` → 播放控制（play/pause/next/prev）
 - `start_auth_server` → Spotify OAuth 回调服务器（120s 超时）
 - `set_lock_state(locked)` → 窗口点击穿透锁定

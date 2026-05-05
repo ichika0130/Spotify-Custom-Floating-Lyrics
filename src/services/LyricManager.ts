@@ -193,7 +193,7 @@ export class LyricManager {
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     if (i > 0) console.log(`[Network] 重试第 ${i + 1} 次...`);
-                    const lyrics = await this.searchLrcLibWithTimeout(track, 5000); // 5秒超时
+                    const lyrics = await this.searchLrcLibWithTimeout(track, 12000);
                     
                     if (lyrics) {
                         // 4. 写入缓存 (异步执行，不阻塞 UI)
@@ -275,7 +275,7 @@ export class LyricManager {
                         }
 
                         // 否则走常规搜索
-                        const lyrics = await this.searchLrcLibWithTimeout(trackInfo, 5000);
+                        const lyrics = await this.searchLrcLibWithTimeout(trackInfo, 12000);
                         if (lyrics) {
                             await this.saveToCache(cacheKey, lyrics);
                             console.log(`[Prefetch] 通过搜索预加载成功: ${cacheKey}`);

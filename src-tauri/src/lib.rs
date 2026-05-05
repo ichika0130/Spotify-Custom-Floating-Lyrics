@@ -97,21 +97,26 @@ pub async fn get_spotify_track_logic() -> Result<String, String> {
     use tokio::process::Command;
 
     let script = r#"
-tell application "Spotify"
-    if it is running then
-        if player state is playing then
-            set st to 4
+try
+    tell application "Spotify"
+        set trackState to player state
+        set trackPos to player position
+        set trackTitle to name of current track
+        set trackArtist to artist of current track
+        set trackDur to duration of current track
+        if trackState is playing then
+            set statusCode to "4"
         else
-            set st to 5
+            set statusCode to "5"
         end if
-        set pos to (round (player position * 1000))
-        set dur to (duration of current track)
-        set sep to "|||"
-        return (st as string) & sep & (pos as string) & sep & (dur as string) & sep & (name of current track) & sep & (artist of current track)
-    else
-        return "stopped"
-    end if
-end tell
+        set posNum to round (trackPos * 1000)
+        set posMs to posNum as string
+        set durMs to trackDur as string
+        return statusCode & "|||" & posMs & "|||" & durMs & "|||" & trackTitle & "|||" & trackArtist
+    end tell
+on error
+    return "stopped"
+end try
 "#;
 
     let output = Command::new("osascript")

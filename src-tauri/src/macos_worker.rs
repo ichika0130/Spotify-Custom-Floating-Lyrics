@@ -54,25 +54,30 @@ impl MacosWorker {
     }
 
     async fn poll() -> Result<TrackUpdate, String> {
-        // Returns: status|position_ms|duration_ms|||title|||artist
-        // Using ||| as separator to reduce collision risk with track names.
-        // splitn(5, "|||") ensures artist (last field) may safely contain "|||".
+        // "|||" as separator — unlikely in track names; splitn(5) lets artist safely contain it.
+        // try/on error handles Spotify not running without an if-it-is-running block,
+        // which caused parse errors on some macOS versions.
         let script = r#"
-tell application "Spotify"
-    if it is running then
-        if player state is playing then
-            set st to "4"
+try
+    tell application "Spotify"
+        set trackState to player state
+        set trackPos to player position
+        set trackTitle to name of current track
+        set trackArtist to artist of current track
+        set trackDur to duration of current track
+        if trackState is playing then
+            set statusCode to "4"
         else
-            set st to "5"
+            set statusCode to "5"
         end if
-        set pos to (round (player position * 1000)) as string
-        set dur to (duration of current track) as string
-        set sep to "|||"
-        return st & sep & pos & sep & dur & sep & (name of current track) & sep & (artist of current track)
-    else
-        return "stopped"
-    end if
-end tell
+        set posNum to round (trackPos * 1000)
+        set posMs to posNum as string
+        set durMs to trackDur as string
+        return statusCode & "|||" & posMs & "|||" & durMs & "|||" & trackTitle & "|||" & trackArtist
+    end tell
+on error
+    return "stopped"
+end try
 "#;
 
         let output = Command::new("osascript")

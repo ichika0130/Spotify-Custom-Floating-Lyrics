@@ -10,7 +10,7 @@ import { invoke } from '@tauri-apps/api/core';
 const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private';
 
 /** 授权回调地址 (必须与 Spotify Dashboard 配置一致) */
-const REDIRECT_URI = 'http://localhost:8888/callback';
+const REDIRECT_URI = 'http://127.0.0.1:8888/callback';
 
 /** Spotify 令牌端点 */
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';

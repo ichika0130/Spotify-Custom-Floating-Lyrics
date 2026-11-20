@@ -71,7 +71,7 @@ macOS 透明必须同时满足两个条件：
 - Spotify.app AppleScript: `player position`（秒）× 1000 = ms；`duration of current track` 已是 ms
 - 数据用 `|||` 分隔：`status|||position|||duration|||title|||artist`
 - `last_updated` 使用 `SystemTime::now()`（与 Windows SMTC 原生时间戳不同，但对前端锚点算法等效）
-- 锁区域鼠标穿透检测仅 Windows 实现；macOS 通过托盘菜单"取消锁定"
+- 锁区域鼠标检测 Windows 用 `GetCursorPos`，macOS 用 `NSEvent.mouseLocation` + `[NSWindow frame]`；锁区为窗口顶部居中 150×70；托盘菜单"取消锁定"始终可用
 
 ## Linux / 其他平台
 

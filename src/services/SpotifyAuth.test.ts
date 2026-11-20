@@ -22,7 +22,7 @@ vi.stubGlobal('window', {
 
 describe('SpotifyAuth Connectivity', () => {
     beforeEach(() => {
-        mockFetch.mockClear();
+        mockFetch.mockReset();
         mockLocalStorage.clear();
         SpotifyAuth.init();
     });
@@ -45,15 +45,15 @@ describe('SpotifyAuth Connectivity', () => {
         // Should log warning about expiration
     });
 
-    test('should attempt device activation when no active device found (404)', async () => {
+    test('should attempt device activation when no active device found (204)', async () => {
         mockLocalStorage.setItem('spotify_client_id', 'test_client_id');
         mockLocalStorage.setItem('spotify_access_token', 'valid_token');
         mockLocalStorage.setItem('spotify_expiration_time', (Date.now() + 10000).toString());
         SpotifyAuth.init();
         
-        // First call: 404 No Active Device
+        // First call: 204 No Content = no active device
         mockFetch.mockResolvedValueOnce({
-            status: 404,
+            status: 204,
             ok: false
         });
 

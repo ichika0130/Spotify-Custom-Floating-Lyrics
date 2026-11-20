@@ -32,6 +32,9 @@ vi.mock('./SpotifyAuth', () => ({
 describe('LyricManager Fuzzy Search', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // LyricManager 的缓存是静态的，每个用例前清空，避免用例互相命中
+        (LyricManager as any).memoryCache.clear();
+        (LyricManager as any).cacheIndex = [];
         // Default: Cache miss
         mockExists.mockResolvedValue(false);
     });

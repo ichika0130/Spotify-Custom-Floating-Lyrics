@@ -531,6 +531,8 @@ export class LyricManager {
                 
                 if (Array.isArray(data) && data.length > 0) {
                     let targetDuration = track.duration;
+                    // 兼容毫秒输入：LRCLIB 用秒，超过 10000 视为毫秒
+                    if (targetDuration > 10000) targetDuration = targetDuration / 1000;
                     
                     if (targetDuration > 0) {
                         const bestMatch = data.find((item: any) => {

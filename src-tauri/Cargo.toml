@@ -1,8 +1,8 @@
 [package]
 name = "spotify-lyrics"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Floating, always-on-top synced lyrics for the Spotify desktop app"
+authors = ["ichika0130"]
 edition = "2021"
 default-run = "spotify-lyrics"
 

@@ -6,6 +6,10 @@ A lightweight, always-on-top, transparent lyrics overlay for the **Spotify deskt
 
 It reads what Spotify is playing straight from the operating system, fetches time-synced lyrics from [LRCLIB](https://lrclib.net), and shows the current line in a floating window. You can drag the window anywhere, or lock it in place and click straight through it.
 
+<p align="center">
+  <img src="docs/screenshots/overlay.png" alt="Floating lyrics window showing the current line of the playing song" width="820">
+</p>
+
 - **No Spotify account linking required.** Works with Spotify Free and Premium out of the box.
 - **Optional Spotify login** improves lyric matching (exact match by ISRC).
 - **Small and native.** It's a Tauri app, so it doesn't bundle Chromium.
@@ -38,11 +42,15 @@ There are no prebuilt releases yet, so build from source (see [Development](#dev
 2. Launch Spotify Custom Floating Lyrics. The current line appears in green, with the song title above it.
 3. Hover over the window to reveal the controls:
 
+   <img src="docs/screenshots/controls.png" alt="Lyrics window on hover, with the control bar at the top" width="720">
+
    | Button | Action |
    |--------|--------|
    | 🔗 | Connect Spotify (optional, see below) |
    | ⏮ ► ⏭ | Previous / play-pause / next |
    | 🔓 | Lock the window (click-through) |
+
+   The window itself is transparent. The screenshots show it over a dark gradient.
 
 4. **Drag** anywhere on the lyrics to move the window. The font scales with the window height.
 5. **Locked mode:** the window ignores the mouse. To unlock, hover the top-center of the window and click 🔒, or use the tray icon → **取消锁定** (Unlock).
